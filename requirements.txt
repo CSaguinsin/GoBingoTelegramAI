@@ -1,0 +1,7 @@
+python-telegram-bot==20.8
+python-dotenv==1.0.0
+torch
+transformers
+Pillow
+opencv-python
+pytesseract 
