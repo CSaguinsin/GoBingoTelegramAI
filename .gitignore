@@ -19,3 +19,9 @@ build/
 
 # Environment variables
 .env
+
+image_documents/
+
+# Add these lines to your .gitignore
+model_cache/
+temp/
