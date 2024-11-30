@@ -12,15 +12,11 @@ logger = logging.getLogger(__name__)
 class LicenseProcessor(BaseDocumentProcessor):
     def __init__(self):
         super().__init__()
-        self.prompt = (
-            "Below is a driver's license image. <image>\n"
-            "Extract and list the following information in exactly this format:\n"
-            "Name: [Full name including Chinese name if present]\n"
-            "License Number: [License number]\n"
-            "Date of birth: [DOB in DD-MM-YYYY format]\n"
-            "Issue Date: [Issue date in DD-MM-YYYY format]\n\n"
-            "Only output the extracted information in the exact format above."
-        )
+        self.prompt = os.getenv('LICENSE_PROMPT')
+        if not self.prompt:
+            logger.error("LICENSE_PROMPT environment variable is required but not set")
+            raise ValueError("LICENSE_PROMPT environment variable is required")
+
 
     def process_image(self, image_path):
         try:

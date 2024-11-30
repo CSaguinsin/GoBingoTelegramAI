@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 class LogCardProcessor(BaseDocumentProcessor):
     def __init__(self):
         super().__init__()
-        self.prompt = (
-            "Below is a vehicle log card image. <image>\n"
-            "Extract everything in the exact format:\n"
-        )
+        self.prompt = os.getenv('LOG_CARD_PROMPT')
+        if not self.prompt:
+            logger.error("LOG_CARD_PROMPT environment variable is required but not set")
+            raise ValueError("LOG_CARD_PROMPT environment variable is required")
 
     def process_image(self, image_path):
         try:

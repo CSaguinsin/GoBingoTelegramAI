@@ -7,64 +7,25 @@ import os
 from abc import ABC, abstractmethod
 from transformers import AutoProcessor, AutoModelForVision2Seq
 from typing import Tuple, Optional
+from model.model_singleton import ModelSingleton
 
 logger = logging.getLogger(__name__)
 
 class BaseDocumentProcessor(ABC):
     def __init__(self):
-        # Set device
-        self.device = torch.device("mps" if torch.backends.mps.is_available() else 
-                                 "cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Using device: {self.device}")
+        # Get singleton instance
+        model_singleton = ModelSingleton.get_instance()
+        
+        # Get model, processor and device from singleton
+        self.model = model_singleton.model
+        self.processor = model_singleton.processor
+        self.device = model_singleton.device
         
         # Set tesseract path
         pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
         
-        # Initialize model-related attributes
-        self.model = None
-        self.processor = None
-        self.prompt = None  # Should be set by child classes
-
-    def load_model(self) -> Tuple[Optional[AutoProcessor], Optional[AutoModelForVision2Seq]]:
-        """Load the VLM model and processor."""
-        try:
-            # Create cache directory
-            cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_cache")
-            os.makedirs(cache_dir, exist_ok=True)
-            logger.info(f"Using cache directory: {cache_dir}")
-            
-            model_name = "HuggingFaceTB/SmolVLM-Instruct"
-            
-            logger.info("Downloading/loading processor...")
-            from transformers import AutoProcessor, AutoModelForVision2Seq
-            
-            processor = AutoProcessor.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                cache_dir=cache_dir
-            )
-            
-            logger.info("Downloading/loading model...")
-            model = AutoModelForVision2Seq.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                cache_dir=cache_dir,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-            )
-            
-            logger.info(f"Moving model to device: {self.device}")
-            model = model.to(self.device)
-            
-            if model is None or processor is None:
-                raise ValueError("Failed to load model or processor")
-                
-            logger.info("Model and processor loaded successfully")
-            return processor, model
-            
-        except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
-            logger.error(f"Cache directory: {cache_dir}")
-            return None, None
+        # Should be set by child classes
+        self.prompt = None
 
     def preprocess_image(self, image_path: str) -> Optional[Image.Image]:
         """Preprocess the image for better text extraction."""

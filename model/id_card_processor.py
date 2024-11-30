@@ -12,15 +12,10 @@ logger = logging.getLogger(__name__)
 class IDCardProcessor(BaseDocumentProcessor):
     def __init__(self):
         super().__init__()
-        self.prompt = (
-            "Below is an ID card image. <image>\n"
-            "Extract and list the following information in exactly this format:\n"
-            "Name: [Full name including Chinese name if present]\n"
-            "Race: [Race of the person]\n"
-            "Date of birth: [DOB in DD-MM-YYYY format]\n"
-            "Sex: [M or F]\n\n"
-            "Only output the extracted information in the exact format above."
-        )
+        self.prompt = os.getenv('ID_CARD_PROMPT')
+        if not self.prompt:
+            logger.error("ID_CARD_PROMPT environment variable is required but not set")
+            raise ValueError("ID_CARD_PROMPT environment variable is required")
 
     def process_image(self, image_path):
         try:
