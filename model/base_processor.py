@@ -13,16 +13,26 @@ logger = logging.getLogger(__name__)
 
 class BaseDocumentProcessor(ABC):
     def __init__(self):
-        # Get singleton instance
-        model_singleton = ModelSingleton.get_instance()
+        try:
+            # Get singleton instance
+            self.model_singleton = ModelSingleton.get_instance()
+            self.model_singleton.ensure_model_loaded()
+            
+            # Access through properties
+            self.model = self.model_singleton.model
+            self.processor = self.model_singleton.processor
+            self.device = self.model_singleton.device
+            
+            if not all([self.model, self.processor, self.device]):
+                raise RuntimeError("Model components not properly initialized")
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize document processor: {str(e)}")
+            raise RuntimeError("Failed to initialize document processor") from e
         
-        # Get model, processor and device from singleton
-        self.model = model_singleton.model
-        self.processor = model_singleton.processor
-        self.device = model_singleton.device
-        
-        # Set tesseract path
-        pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
+        # Set tesseract path if needed
+        if os.getenv('TESSERACT_PATH'):
+            pytesseract.pytesseract.tesseract_cmd = os.getenv('TESSERACT_PATH')
         
         # Should be set by child classes
         self.prompt = None
@@ -61,12 +71,9 @@ class BaseDocumentProcessor(ABC):
             return None
 
     def cleanup(self) -> None:
-        """Clean up resources."""
+        """Clean up temporary resources."""
         try:
-            if hasattr(self, 'model') and self.model is not None:
-                del self.model
-            if hasattr(self, 'processor') and self.processor is not None:
-                del self.processor
+            # Only clear cache if using GPU
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():

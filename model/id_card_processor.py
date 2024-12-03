@@ -19,87 +19,96 @@ class IDCardProcessor(BaseDocumentProcessor):
 
     def process_image(self, image_path):
         try:
-            logger.info(f"Processing ID card image: {image_path}")
+            logger.info(f"Processing image: {image_path}")
             
             original_image = self.verify_image(image_path)
             if original_image is None:
-                return "Image verification failed", "Image verification failed"
+                return "Image verification failed"
             
             logger.info(f"Image opened successfully: {original_image.size}")
             
             try:
-                self.processor, self.model = self.load_model()
-                if self.processor is None or self.model is None:
-                    return "Model loading failed", "Model loading failed"
+                # Optimize image size if too large
+                max_size = 1024
+                if original_image.size[0] > max_size or original_image.size[1] > max_size:
+                    ratio = max_size / max(original_image.size)
+                    new_size = tuple([int(dim * ratio) for dim in original_image.size])
+                    original_image = original_image.resize(new_size, Image.Resampling.LANCZOS)
+                    logger.info(f"Resized image to: {original_image.size}")
+
+                logger.info("Preparing model inputs...")
+                inputs = self.processor(
+                    text=[self.prompt],
+                    images=[original_image],
+                    return_tensors="pt",
+                    padding=True
+                ).to(self.device)
                 
-                logger.info("Model loaded successfully")
+                logger.info("Starting model inference...")
+                with torch.no_grad():
+                    # Set shorter max_new_tokens for faster processing
+                    output_ids = self.model.generate(
+                        **inputs,
+                        max_new_tokens=128,  # Reduced from 256
+                        num_beams=2,         # Reduced from 3
+                        temperature=0.3,
+                        do_sample=True,
+                        length_penalty=1.0,
+                        repetition_penalty=1.2
+                    )
+                    
+                    generated_text = self.processor.batch_decode(output_ids, skip_special_tokens=True)[0]
+                    logger.info(f"Raw generated text: {generated_text}")
+                    
+                    formatted_text = self.format_text(generated_text)
+                    logger.info(f"Formatted output: {formatted_text}")
+                    
+                    return formatted_text
                 
-                try:
-                    # Prepare inputs for SmolVLM
-                    inputs = self.processor(
-                        text=[self.prompt],  # Wrap prompt in list
-                        images=[original_image],  # Wrap image in list
-                        return_tensors="pt",
-                        padding=True
-                    ).to(self.device)
-                    
-                    logger.info("Generating response...")
-                    with torch.no_grad():
-                        output_ids = self.model.generate(
-                            **inputs,
-                            max_new_tokens=256,
-                            num_beams=3,
-                            temperature=0.3,
-                            do_sample=False,
-                            length_penalty=1.0,
-                            repetition_penalty=1.2
-                        )
-                        
-                        generated_text = self.processor.batch_decode(output_ids, skip_special_tokens=True)[0]
-                        logger.info(f"Raw generated text: {generated_text}")
-                        
-                        formatted_text = self.format_text(generated_text)
-                        logger.info(f"Formatted output: {formatted_text}")
-                        
-                        return formatted_text, formatted_text
-                    
-                except Exception as e:
-                    logger.error(f"Generation error: {str(e)}")
-                    return "Text generation failed", "Text generation failed"
-                    
             except Exception as e:
-                logger.error(f"Model processing error: {str(e)}")
-                return "Model processing failed", "Model processing failed"
-                
+                logger.error(f"Generation error: {str(e)}")
+                return "Text generation failed"
             finally:
+                # Clean up CUDA memory
                 self.cleanup()
-                
+            
         except Exception as e:
             logger.error(f"General error: {str(e)}")
-            return "Image processing failed", "Image processing failed"
+            return "Image processing failed"
 
     def format_text(self, text: str) -> str:
-        """Format the extracted text into a structured output."""
         try:
-            # Split the text into lines and find where the actual data starts
+            # Initialize default values
+            formatted_data = {
+                "Name": "",
+                "Race": "",
+                "Date of birth": "",
+                "Sex": "",
+                "Country/Place of birth": ""
+            }
+            
+            # Split into lines and process each line
             lines = text.split('\n')
-            data_start = -1
+            for line in lines:
+                line = line.strip()
+                if not line or "<image>" in line or "Extract only" in line:
+                    continue
+                    
+                # Check for field headers
+                for field in formatted_data.keys():
+                    if line.startswith(field + ":"):
+                        value = line.split(":", 1)[1].strip()
+                        formatted_data[field] = value
+                        break
             
-            # Find where the actual data begins
-            for i, line in enumerate(lines):
-                if "Only output the extracted information" in line:
-                    data_start = i + 2  # Skip the empty line after instructions
-                    break
+            # Format output
+            output_lines = []
+            for field, value in formatted_data.items():
+                if value:  # Only include non-empty values
+                    output_lines.append(f"{field}: {value}")
             
-            if data_start >= 0 and data_start < len(lines):
-                # Extract only the actual data lines, removing empty lines and cleaning up
-                data_lines = [line.strip() for line in lines[data_start:] if line.strip()]
-                
-                # Join the cleaned data lines with newlines
-                return '\n'.join(data_lines)
-                
-            return "No data found"
-                
+            return "\n".join(output_lines) if output_lines else "No data found"
+            
         except Exception as e:
             logger.error(f"Error formatting text: {str(e)}")
-            return text
+            return "Error formatting text"

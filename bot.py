@@ -1,7 +1,7 @@
 import os
 import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, Defaults
 from dotenv import load_dotenv
 from controller.controller import TelegramController, UPLOAD_ID, UPLOAD_LICENSE, UPLOAD_LOG
 
@@ -17,8 +17,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main() -> None:
-    # Initialize bot and controller
-    application = Application.builder().token(os.getenv('TELEGRAM_BOT_API')).build()
+    # Initialize application with default timeouts
+    application = (
+        Application.builder()
+        .token(os.getenv('TELEGRAM_BOT_API'))
+        .read_timeout(int(os.getenv('TELEGRAM_READ_TIMEOUT', 30)))
+        .write_timeout(int(os.getenv('TELEGRAM_WRITE_TIMEOUT', 30)))
+        .connect_timeout(int(os.getenv('TELEGRAM_CONNECT_TIMEOUT', 20)))
+        .pool_timeout(int(os.getenv('TELEGRAM_TIMEOUT', 30)))
+        .build()
+    )
+    
     controller = TelegramController()
 
     # Create conversation handler

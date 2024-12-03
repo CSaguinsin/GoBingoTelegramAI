@@ -20,7 +20,13 @@ class DocumentProcessorFactory:
 def process_document(image_path, document_type='id_card'):
     try:
         processor = DocumentProcessorFactory.get_processor(document_type)
-        return processor.process_image(image_path)
+        result = processor.process_image(image_path)
+        
+        # If result is a tuple, take the first element
+        if isinstance(result, tuple):
+            return result[0]
+        return result
+        
     except Exception as e:
         logger.error(f"Error processing document: {str(e)}")
-        return "Document processing failed", "Document processing failed" 
+        return "Document processing failed" 
