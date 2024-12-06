@@ -52,11 +52,12 @@ The application follows the Model-View-Controller (MVC) pattern:
 - **Model**: HuggingFaceTB/SmolVLM-Instruct
 - **Framework**: PyTorch
 - **Processing Pipeline**:
-  1. Image Preprocessing
-  2. OCR Processing
+  1. Image Preprocessing & Validation
+  2. Size Optimization
   3. VLM Analysis
-  4. Text Extraction
-  5. Data Formatting
+  4. Text Extraction & Formatting
+  5. Data Structuring
+  6. Monday.com Integration
 
 ### Document Processors
 Each document type has a dedicated processor inheriting from `BaseDocumentProcessor`:

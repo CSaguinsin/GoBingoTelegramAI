@@ -64,7 +64,7 @@ class LicenseProcessor(BaseDocumentProcessor):
                     formatted_text = self.format_text(generated_text)
                     logger.info(f"Formatted output: {formatted_text}")
                     
-                    return formatted_text, formatted_text
+                    return formatted_text
                 
             except Exception as e:
                 logger.error(f"Generation error: {str(e)}")

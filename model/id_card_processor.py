@@ -78,33 +78,37 @@ class IDCardProcessor(BaseDocumentProcessor):
 
     def format_text(self, text: str) -> str:
         try:
-            # Initialize default values
+            # Initialize with required fields
             formatted_data = {
                 "Name": "",
                 "Race": "",
                 "Date of birth": "",
                 "Sex": "",
-                "Country/Place of birth": ""
+                "Country/Place of birth": "",
+                "ID Number": ""
             }
             
-            # Split into lines and process each line
+            # Process lines
             lines = text.split('\n')
             for line in lines:
                 line = line.strip()
                 if not line or "<image>" in line or "Extract only" in line:
                     continue
                     
-                # Check for field headers
                 for field in formatted_data.keys():
-                    if line.startswith(field + ":"):
+                    if line.lower().startswith(field.lower() + ":"):
                         value = line.split(":", 1)[1].strip()
+                        # Clean the value
+                        value = value.replace('"', '')  # Remove quotes
+                        value = value.replace('\n', ' ')  # Replace newlines
+                        value = ' '.join(value.split())  # Normalize whitespace
                         formatted_data[field] = value
                         break
             
             # Format output
             output_lines = []
             for field, value in formatted_data.items():
-                if value:  # Only include non-empty values
+                if value and value.lower() != "not found":  # Only include valid values
                     output_lines.append(f"{field}: {value}")
             
             return "\n".join(output_lines) if output_lines else "No data found"
