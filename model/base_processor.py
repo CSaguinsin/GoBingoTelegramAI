@@ -7,64 +7,35 @@ import os
 from abc import ABC, abstractmethod
 from transformers import AutoProcessor, AutoModelForVision2Seq
 from typing import Tuple, Optional
+from model.model_singleton import ModelSingleton
 
 logger = logging.getLogger(__name__)
 
 class BaseDocumentProcessor(ABC):
     def __init__(self):
-        # Set device
-        self.device = torch.device("mps" if torch.backends.mps.is_available() else 
-                                 "cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Using device: {self.device}")
-        
-        # Set tesseract path
-        pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
-        
-        # Initialize model-related attributes
-        self.model = None
-        self.processor = None
-        self.prompt = None  # Should be set by child classes
-
-    def load_model(self) -> Tuple[Optional[AutoProcessor], Optional[AutoModelForVision2Seq]]:
-        """Load the VLM model and processor."""
         try:
-            # Create cache directory
-            cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_cache")
-            os.makedirs(cache_dir, exist_ok=True)
-            logger.info(f"Using cache directory: {cache_dir}")
+            # Get singleton instance
+            self.model_singleton = ModelSingleton.get_instance()
+            self.model_singleton.ensure_model_loaded()
             
-            model_name = "HuggingFaceTB/SmolVLM-Instruct"
+            # Access through properties
+            self.model = self.model_singleton.model
+            self.processor = self.model_singleton.processor
+            self.device = self.model_singleton.device
             
-            logger.info("Downloading/loading processor...")
-            from transformers import AutoProcessor, AutoModelForVision2Seq
-            
-            processor = AutoProcessor.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                cache_dir=cache_dir
-            )
-            
-            logger.info("Downloading/loading model...")
-            model = AutoModelForVision2Seq.from_pretrained(
-                model_name,
-                trust_remote_code=True,
-                cache_dir=cache_dir,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-            )
-            
-            logger.info(f"Moving model to device: {self.device}")
-            model = model.to(self.device)
-            
-            if model is None or processor is None:
-                raise ValueError("Failed to load model or processor")
+            if not all([self.model, self.processor, self.device]):
+                raise RuntimeError("Model components not properly initialized")
                 
-            logger.info("Model and processor loaded successfully")
-            return processor, model
-            
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
-            logger.error(f"Cache directory: {cache_dir}")
-            return None, None
+            logger.error(f"Failed to initialize document processor: {str(e)}")
+            raise RuntimeError("Failed to initialize document processor") from e
+        
+        # Set tesseract path if needed
+        if os.getenv('TESSERACT_PATH'):
+            pytesseract.pytesseract.tesseract_cmd = os.getenv('TESSERACT_PATH')
+        
+        # Should be set by child classes
+        self.prompt = None
 
     def preprocess_image(self, image_path: str) -> Optional[Image.Image]:
         """Preprocess the image for better text extraction."""
@@ -100,12 +71,9 @@ class BaseDocumentProcessor(ABC):
             return None
 
     def cleanup(self) -> None:
-        """Clean up resources."""
+        """Clean up temporary resources."""
         try:
-            if hasattr(self, 'model') and self.model is not None:
-                del self.model
-            if hasattr(self, 'processor') and self.processor is not None:
-                del self.processor
+            # Only clear cache if using GPU
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():

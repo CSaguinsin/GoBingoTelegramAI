@@ -1,3 +1,11 @@
+import asyncio
+from telegram import Update
+from telegram.ext import CallbackContext
+from telegram.error import TimedOut
+import logging
+
+logger = logging.getLogger(__name__)
+
 class TelegramView:
     @staticmethod
     async def send_welcome_message(update):
@@ -7,8 +15,18 @@ class TelegramView:
         )
 
     @staticmethod
+    async def send_model_loading_message(update):
+        await update.message.reply_text("Loading AI model... This might take a minute... 🤖")
+
+    @staticmethod
     async def send_processing_message(update, doc_type):
-        await update.message.reply_text(f"Processing your {doc_type}...")
+        try:
+            await update.message.reply_text(
+                f"Processing your {doc_type}...\n"
+                "This typically takes 30-60 seconds... ⏳"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send processing message: {str(e)}")
 
     @staticmethod
     async def send_error_message(update, error_msg):
@@ -19,8 +37,8 @@ class TelegramView:
         await update.message.reply_text(f"Image validation failed: {message}")
 
     @staticmethod
-    async def send_extracted_text(update, doc_type, text):
-        await update.message.reply_text(f"Extracted text from {doc_type}:\n\n{text}")
+    async def send_processing_complete(update, doc_type):
+        await update.message.reply_text(f"{doc_type} processing completed successfully.")
 
     @staticmethod
     async def request_next_document(update, doc_type):
@@ -33,3 +51,34 @@ class TelegramView:
     @staticmethod
     async def send_cancel_message(update):
         await update.message.reply_text("Process cancelled. Send /start to begin again.")
+
+    @staticmethod
+    async def send_data_saved_message(update):
+        await update.message.reply_text(
+            "All documents processed successfully! Data has been saved to the system. ✅"
+        )
+
+    @staticmethod
+    async def send_data_save_error_message(update):
+        await update.message.reply_text(
+            "⚠️ Documents processed but there was an error saving the data. Please try again or contact support."
+        )
+
+    @staticmethod
+    async def send_extracted_text(update, doc_type, text):
+        """Send extracted text to user with formatting."""
+        message = f"📄 Extracted information from {doc_type}:\n\n{text}"
+        await update.message.reply_text(message)
+
+    async def send_message_with_retry(self, update, text, max_retries=3, retry_delay=2):
+        """Send message with retry mechanism for timeout handling"""
+        for attempt in range(max_retries):
+            try:
+                return await update.message.reply_text(text)
+            except TimedOut:
+                if attempt == max_retries - 1:
+                    raise
+                await asyncio.sleep(retry_delay)
+            except Exception as e:
+                logger.error(f"Error sending message: {str(e)}")
+                raise
