@@ -8,15 +8,24 @@ logger = logging.getLogger(__name__)
 
 class TelegramView:
     @staticmethod
+    async def send_message(update: Update, text: str):
+        """
+        Sends a generic text message to the user.
+        """
+        await update.message.reply_text(text)
+
+    @staticmethod
     async def send_welcome_message(update):
         await update.message.reply_text(
             "Welcome to GoBingo Telegram AI Bot! 👋\n\n"
             "Please upload your Identity Card photo."
         )
 
+
     @staticmethod
     async def send_model_loading_message(update):
-        await update.message.reply_text("Loading AI model... This might take a minute... 🤖")
+        await update.message.reply_text(
+            "Your data is secure. Our internal AI model extracts the necessary information directly from your uploaded documents in our AI Assistant, ensuring your personal information remains confidential and is not shared with any third parties. Thank you for trusting us.")
 
     @staticmethod
     async def send_processing_message(update, doc_type):
@@ -46,7 +55,7 @@ class TelegramView:
 
     @staticmethod
     async def send_completion_message(update):
-        await update.message.reply_text("Thank you for using GoBingo Telegram AI bot! 🎉")
+        await update.message.reply_text("Thank you for using GoBingo AI Assistant! 🎉")
 
     @staticmethod
     async def send_cancel_message(update):

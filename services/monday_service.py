@@ -137,6 +137,14 @@ class MondayService:
                     if data.get('Intended Transfer Date'):
                         column_values[os.getenv('INTENDED_TRANSFER_DATE', 'date75')] = format_date_value(data.get('Intended Transfer Date'))
 
+                    # Add Referrer Information to column values
+                    if data.get("Referrer's Name"):
+                        column_values[os.getenv('REFERRER_NAME', 'text23')] = format_text_value(data.get("Referrer's Name"))
+                    if data.get("Contact Number"):
+                        column_values[os.getenv('CONTACT_NUMBER', 'phone0')] = format_text_value(data.get("Contact Number"))
+                    if data.get("Dealership"):
+                        column_values[os.getenv('DEALERSHIP', 'text3')] = format_text_value(data.get("Dealership"))
+
                     # Convert the column values to Monday.com's expected format
                     formatted_values = {}
                     for key, value in column_values.items():

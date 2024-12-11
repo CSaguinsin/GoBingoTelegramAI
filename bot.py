@@ -3,7 +3,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ConversationHandler, Defaults
 from dotenv import load_dotenv
-from controller.controller import TelegramController, UPLOAD_ID, UPLOAD_LICENSE, UPLOAD_LOG
+from controller.controller import TelegramController, UPLOAD_ID, UPLOAD_LICENSE, UPLOAD_LOG, STATE_REFERRER_NAME, STATE_REFERRER_CONTACT, STATE_REFERRER_DEALERSHIP
 
 # Load environment variables
 load_dotenv()
@@ -37,6 +37,9 @@ def main() -> None:
             UPLOAD_ID: [MessageHandler(filters.PHOTO, controller.handle_id_card)],
             UPLOAD_LICENSE: [MessageHandler(filters.PHOTO, controller.handle_drivers_license)],
             UPLOAD_LOG: [MessageHandler(filters.PHOTO, controller.handle_log_card)],
+            STATE_REFERRER_NAME: [MessageHandler(filters.TEXT, controller.collect_referrer_name)],
+            STATE_REFERRER_CONTACT: [MessageHandler(filters.TEXT, controller.collect_referrer_contact)],
+            STATE_REFERRER_DEALERSHIP: [MessageHandler(filters.TEXT, controller.collect_referrer_dealership)],
         },
         fallbacks=[CommandHandler('cancel', controller.cancel)],
     )
